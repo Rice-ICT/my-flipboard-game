@@ -6,6 +6,8 @@ import { useState, useRef, useEffect } from "react";
 
 // Removed FONT constant and textToPixels function as they are no longer needed.
 export default function FlipboardGame() {
+  // State for hover effect
+  const [hovered, setHovered] = useState<{ row: number; col: number } | null>(null);
   // Flipboard and playfield config
   const rows = 28;
   const cols = 85;
@@ -160,7 +162,7 @@ export default function FlipboardGame() {
       pixels[r][c] = true;
     }
   }
-  // Draw hits and misses for both fields
+  // Draw hits, misses, and ships for both fields
   for (let p = 0; p < numPlayers; p++) {
     const fieldStart = p === 0 ? 0 : fieldCols + dividerWidth;
     for (let r = 0; r < fieldRows; r++) {
@@ -170,14 +172,39 @@ export default function FlipboardGame() {
         } else if (misses[p][r][c]) {
           // Animate miss: flip color
           pixels[r][fieldStart + c] = animFrame % 2 === 0;
+        } else if (fields[p].field[r][c] === 1) {
+          // Show ships as white dots (for player's own side only)
+          if (p === turn) {
+            pixels[r][fieldStart + c] = true;
+          }
         }
+      }
+    }
+  }
+  // Draw hover effect: only flip to white if not a ship location
+  if (hovered) {
+    if (hovered.col < fieldCols) {
+      // Hovering on left side, highlight right side
+      const otherCol = hovered.col + fieldCols + dividerWidth;
+      // Only flip if not a ship location for player 2
+      if (fields[1].field[hovered.row][hovered.col] !== 1) {
+        pixels[hovered.row][otherCol] = true;
+      }
+    } else if (hovered.col >= fieldCols + dividerWidth) {
+      // Hovering on right side, highlight left side
+      const otherCol = hovered.col - fieldCols - dividerWidth;
+      // Only flip if not a ship location for player 1
+      if (fields[0].field[hovered.row][otherCol] !== 1) {
+        pixels[hovered.row][otherCol] = true;
       }
     }
   }
 
   // Render playfields below flipboard
+  // Always show the current player's ships below, matching the flipboard
   function renderPlayfield(playerIdx: number) {
-    const { field } = fields[playerIdx];
+    // Show the current player's field for both playfields
+    const { field } = fields[turn];
     return (
       <div
         className="grid border border-gray-400"
@@ -192,12 +219,12 @@ export default function FlipboardGame() {
           row.map((cell, c) => (
             <div
               key={`${r}-${c}`}
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    backgroundColor: cell === 1 ? "#4ade80" : "#222",
-                    borderRadius: "2px",
-                  }}
+              style={{
+                width: "12px",
+                height: "12px",
+                backgroundColor: cell === 1 ? "#4ade80" : "#222",
+                borderRadius: "2px",
+              }}
             />
           ))
         )}
@@ -233,6 +260,8 @@ export default function FlipboardGame() {
               }}
               className="rounded-sm"
               onClick={() => handleFlipboardCellClick(r, c)}
+              onMouseEnter={() => setHovered({ row: r, col: c })}
+              onMouseLeave={() => setHovered(null)}
             />
           ))
         )}
