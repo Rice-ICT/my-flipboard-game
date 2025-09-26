@@ -1,4 +1,6 @@
-// used this prompt to generate this code: "Create a Next.js reaction timing game with a 28×85 flipboard of black-and-white dots. The game starts with a black screen and displays text messages like “CLICK TO START,” “WAIT,” “TOO SOON,” and reaction times using a 5×7 pixel font. During the go phase, the entire board turns white, and the user must click as fast as possible. The game measures reaction time, displays it on the flipboard"
+// used this prompt to generate this code: "please create a code where two players can play battleship on a 28x85 flipboard of black-and-white dots. Each player has a 41x28 playfield on their side of the flipboard, separated by a 3-column divider. Players take turns clicking on the opponent's field to guess ship locations. Ships are represented as 2x2 blocks of white dots, and hits/misses are indicated by flipping the corresponding dot to white/black. The game should enforce standard battleship rules, including no adjacent ships and turn-based play. Include hover effects to highlight potential target cells on the opponent's field."
+// the code is barely functional and doesn't fully work as intended. there's still a lot of bugs but it's a start.
+
 
 "use client";
 
