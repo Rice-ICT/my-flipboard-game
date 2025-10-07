@@ -12,9 +12,9 @@ export default function FlipboardGame() {
   const [hovered, setHovered] = useState<{ row: number; col: number } | null>(null);
   // Flipboard and playfield config
   const rows = 28;
-  const cols = 85;
-  const dividerWidth = 3; // 3 columns for divider
-  const fieldCols = Math.floor((cols - dividerWidth) / 2); // 41
+  const cols = 84;
+  const dividerWidth = 2; // 2 columns for divider
+  const fieldCols = 41; // (84 - 2) / 2 = 41
   const fieldRows = rows; // 28
   const sectionSize = 2; // Each ship section is 2x2 dots
 
@@ -119,24 +119,17 @@ export default function FlipboardGame() {
     return () => clearInterval(id);
   }, []);
 
-  // Handle click on a flipboard cell
-  function handleFlipboardCellClick(r: number, c: number) {
-    // Only allow clicking on opponent's field
-    const oppFieldStart = turn === 0 ? fieldCols + dividerWidth : 0;
-    const oppFieldEnd = turn === 0 ? cols : fieldCols;
-    if (c < oppFieldStart || c >= oppFieldEnd) return;
-    // Convert to field-relative coordinates
-    const relCol = c - oppFieldStart;
-    const relRow = r;
+  // Handle click on a playfield cell (player attacks by clicking their own board)
+  function handlePlayfieldCellClick(r: number, c: number) {
     // Only allow clicking if not already hit/missed
-    if (hits[turn][relRow][relCol] || misses[turn][relRow][relCol]) return;
-    // Check if hit or miss
+    if (hits[turn][r][c] || misses[turn][r][c]) return;
+    // Check if hit or miss on opponent's board
     const opponentField = turn === 0 ? fields[1].field : fields[0].field;
-    if (opponentField[relRow][relCol] === 1) {
+    if (opponentField[r][c] === 1) {
       // Register hit
       setHits(prev => {
         const next = prev.map(arr => arr.map(row => [...row]));
-        next[turn][relRow][relCol] = 1;
+        next[turn][r][c] = 1;
         return next;
       });
       // Do not switch player on hit
@@ -144,7 +137,7 @@ export default function FlipboardGame() {
       // Register miss
       setMisses(prev => {
         const next = prev.map(arr => arr.map(row => [...row]));
-        next[turn][relRow][relCol] = 1;
+        next[turn][r][c] = 1;
         return next;
       });
       // Switch player after a short delay
@@ -164,7 +157,7 @@ export default function FlipboardGame() {
       pixels[r][c] = true;
     }
   }
-  // Draw hits, misses, and ships for both fields
+  // Draw hits and misses for both fields (ships are NOT displayed)
   for (let p = 0; p < numPlayers; p++) {
     const fieldStart = p === 0 ? 0 : fieldCols + dividerWidth;
     for (let r = 0; r < fieldRows; r++) {
@@ -174,11 +167,6 @@ export default function FlipboardGame() {
         } else if (misses[p][r][c]) {
           // Animate miss: flip color
           pixels[r][fieldStart + c] = animFrame % 2 === 0;
-        } else if (fields[p].field[r][c] === 1) {
-          // Show ships as white dots (for player's own side only)
-          if (p === turn) {
-            pixels[r][fieldStart + c] = true;
-          }
         }
       }
     }
@@ -203,32 +191,46 @@ export default function FlipboardGame() {
   }
 
   // Render playfields below flipboard
-  // Always show the current player's ships below, matching the flipboard
+  // Each player clicks their own playfield to attack
   function renderPlayfield(playerIdx: number) {
-    // Show the current player's field for both playfields
-    const { field } = fields[turn];
+    const { field } = fields[playerIdx];
     return (
       <div
-        className="grid border border-gray-400"
+        className="grid border-2 border-gray-500"
         style={{
-          gridTemplateColumns: `repeat(${fieldCols}, 12px)`,
+          gridTemplateColumns: `repeat(41, 12px)`,
           gridTemplateRows: `repeat(${fieldRows}, 12px)`,
           gap: 1,
           margin: 4,
         }}
       >
         {field.flatMap((row, r) =>
-          row.map((cell, c) => (
-            <div
-              key={`${r}-${c}`}
-              style={{
-                width: "12px",
-                height: "12px",
-                backgroundColor: cell === 1 ? "#4ade80" : "#222",
-                borderRadius: "2px",
-              }}
-            />
-          ))
+          row.map((cell, c) => {
+            // Show grid border for each cell
+            const border = "1px solid #888";
+            // Show hit/miss overlay
+            let overlay = null;
+            if (hits[playerIdx][r][c]) {
+              overlay = <div style={{position:'absolute',width:'100%',height:'100%',background:'#fff',borderRadius:'2px'}} />;
+            } else if (misses[playerIdx][r][c]) {
+              overlay = <div style={{position:'absolute',width:'100%',height:'100%',background:animFrame%2===0?'#fff':'#222',borderRadius:'2px'}} />;
+            }
+            return (
+              <div
+                key={`${r}-${c}`}
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  backgroundColor: cell === 1 ? "#4ade80" : "#222",
+                  borderRadius: "2px",
+                  border,
+                  position: "relative",
+                  cursor: turn === playerIdx && !(hits[playerIdx][r][c] || misses[playerIdx][r][c]) ? "pointer" : "default",
+                }}
+                onClick={turn === playerIdx ? () => handlePlayfieldCellClick(r, c) : undefined}
+              >{overlay}</div>
+            );
+          })
         )}
       </div>
     );
@@ -238,11 +240,11 @@ export default function FlipboardGame() {
     <div className="flex flex-col items-center gap-4">
       {/* Flipboard grid */}
       <div
-        className="grid"
+        className="grid border-2 border-gray-500"
         style={{
-          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gridTemplateColumns: `repeat(84, 1fr)`,
           gridTemplateRows: `repeat(${rows}, 1fr)`,
-          width: `${cols * 10}px`,
+          width: `${84 * 10}px`,
           height: `${rows * 10}px`,
           gap: "1px",
         }}
@@ -253,17 +255,9 @@ export default function FlipboardGame() {
               key={`${r}-${c}`}
               style={{
                 backgroundColor: cell ? "white" : "black",
-                cursor:
-                  // Only allow clicking on opponent's field and not already hit/missed
-                  ((turn === 0 && c >= fieldCols + dividerWidth) || (turn === 1 && c < fieldCols)) &&
-                  !(hits[turn][r][c - (turn === 0 ? fieldCols + dividerWidth : 0)] || misses[turn][r][c - (turn === 0 ? fieldCols + dividerWidth : 0)])
-                    ? "pointer"
-                    : "default",
+                border: "1px solid #888",
               }}
               className="rounded-sm"
-              onClick={() => handleFlipboardCellClick(r, c)}
-              onMouseEnter={() => setHovered({ row: r, col: c })}
-              onMouseLeave={() => setHovered(null)}
             />
           ))
         )}
